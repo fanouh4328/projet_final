@@ -13,7 +13,7 @@ $categorie_filter = $_GET['categorie'] ?? 'all';
 // Préparer requête selon filtre
 if ($categorie_filter !== 'all' && $categorie_filter !== '') {
     $stmt = $conn->prepare("
-        SELECT o.nom_objet, c.nom_categorie, e.date_retour
+        SELECT o.id_objet, o.nom_objet, c.nom_categorie, e.date_retour
         FROM objet o
         INNER JOIN categorie_objet c ON o.id_categorie = c.id_categorie
         LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
@@ -23,7 +23,7 @@ if ($categorie_filter !== 'all' && $categorie_filter !== '') {
     $stmt->bind_param("i", $categorie_filter);
 } else {
     $stmt = $conn->prepare("
-        SELECT o.nom_objet, c.nom_categorie, e.date_retour
+        SELECT o.id_objet, o.nom_objet, c.nom_categorie, e.date_retour
         FROM objet o
         INNER JOIN categorie_objet c ON o.id_categorie = c.id_categorie
         LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
@@ -40,8 +40,15 @@ $result = $stmt->get_result();
     <meta charset="UTF-8" />
     <title>Liste des objets</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Bootstrap CSS (version 5.3 CDN, stable) -->
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+      .card-img-top {
+        height: 180px;
+        object-fit: cover;
+        background: #ddd; /* placeholder gris si pas d'image */
+      }
+    </style>
 </head>
 <body class="bg-light">
 
@@ -60,42 +67,36 @@ $result = $stmt->get_result();
         </select>
     </form>
 
-    <div class="table-responsive shadow-sm">
-        <table class="table table-striped table-bordered align-middle text-center">
-            <thead class="table-dark">
-                <tr>
-                    <th>Nom de l'objet</th>
-                    <th>Catégorie</th>
-                    <th>Date retour (emprunt en cours)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if ($result->num_rows > 0): ?>
-                    <?php while ($row = $result->fetch_assoc()): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($row['nom_objet']) ?></td>
-                            <td><?= htmlspecialchars($row['nom_categorie']) ?></td>
-                            <td>
-                                <?php if ($row['date_retour']): ?>
-                                    <?= date('d/m/Y', strtotime($row['date_retour'])) ?>
-                                <?php else: ?>
-                                    <span class="badge bg-success">Disponible</span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <tr><td colspan="3" class="text-muted fst-italic">Aucun objet trouvé.</td></tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
+    <?php if ($result->num_rows > 0): ?>
+    <div class="row g-4">
+        <?php while ($row = $result->fetch_assoc()): ?>
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm">
+                    <!-- Image principale - tu dois adapter si tu as un champ image -->
+                    <img src="images/balance.jpeg" alt="<?= htmlspecialchars($row['nom_objet']) ?>" class="card-img-top" />
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title"><?= htmlspecialchars($row['nom_objet']) ?></h5>
+                        <p class="card-text text-muted"><?= htmlspecialchars($row['nom_categorie']) ?></p>
+                        <p>
+                          <?php if ($row['date_retour']): ?>
+                            <span class="badge bg-warning text-dark">
+                              Emprunté jusqu'au <?= date('d/m/Y', strtotime($row['date_retour'])) ?>
+                            </span>
+                          <?php else: ?>
+                            <span class="badge bg-success">Disponible</span>
+                          <?php endif; ?>
+                        </p>
+                        <a href="fiche_objet.php?id=<?= $row['id_objet'] ?>" class="btn btn-primary mt-auto">Voir plus</a>
+                    </div>
+                </div>
+            </div>
+        <?php endwhile; ?>
     </div>
+    <?php else: ?>
+        <p class="text-center fst-italic">Aucun objet trouvé.</p>
+    <?php endif; ?>
 </div>
-<div class="text-center mb-4">
-  <a href="objets.php" class="btn btn-success">Voir la liste des objets en mode carte</a>
-</div
 
-<!-- Bootstrap JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
