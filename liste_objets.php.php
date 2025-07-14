@@ -1,68 +1,98 @@
 <?php
 $conn = new mysqli("localhost", "root", "", "membres");
-
-// Récupérer les catégories pour le filtre
-$result_cat = $conn->query("SELECT * FROM categorie_objet");
-
-// Récupérer la catégorie choisie en GET
-$categorie_filter = isset($_GET['categorie']) ? $_GET['categorie'] : '';
-
-// Construire la requête SQL selon filtre
-if ($categorie_filter && $categorie_filter != 'all') {
-    $stmt = $conn->prepare("SELECT o.id_objet, o.nom_objet, c.nom_categorie, e.date_retour
-                            FROM objet o
-                            JOIN categorie_objet c ON o.id_categorie = c.id_categorie
-                            LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
-                            WHERE c.id_categorie = ?
-                            ORDER BY o.nom_objet");
-    $stmt->bind_param("i", $categorie_filter);
-} else {
-    $stmt = $conn->prepare("SELECT o.id_objet, o.nom_objet, c.nom_categorie, e.date_retour
-                            FROM objet o
-                            JOIN categorie_objet c ON o.id_categorie = c.id_categorie
-                            LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
-                            ORDER BY c.nom_categorie, o.nom_objet");
+if ($conn->connect_error) {
+    die("Erreur de connexion : " . $conn->connect_error);
 }
 
+// Récupérer catégories
+$result_cat = $conn->query("SELECT * FROM categorie_objet");
+
+// Catégorie sélectionnée
+$categorie_filter = $_GET['categorie'] ?? 'all';
+
+// Préparer requête selon filtre
+if ($categorie_filter !== 'all' && $categorie_filter !== '') {
+    $stmt = $conn->prepare("
+        SELECT o.nom_objet, c.nom_categorie, e.date_retour
+        FROM objet o
+        INNER JOIN categorie_objet c ON o.id_categorie = c.id_categorie
+        LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
+        WHERE c.id_categorie = ?
+        ORDER BY o.nom_objet ASC
+    ");
+    $stmt->bind_param("i", $categorie_filter);
+} else {
+    $stmt = $conn->prepare("
+        SELECT o.nom_objet, c.nom_categorie, e.date_retour
+        FROM objet o
+        INNER JOIN categorie_objet c ON o.id_categorie = c.id_categorie
+        LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
+        ORDER BY c.nom_categorie ASC, o.nom_objet ASC
+    ");
+}
 $stmt->execute();
 $result = $stmt->get_result();
 ?>
 
-<h2>Liste des objets</h2>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Liste des objets</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Bootstrap CSS (version 5.3 CDN, stable) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
 
-<form method="GET">
-    <label for="categorie">Filtrer par catégorie :</label>
-    <select name="categorie" id="categorie" onchange="this.form.submit()">
-        <option value="all">Toutes</option>
-        <?php while ($cat = $result_cat->fetch_assoc()) : ?>
-            <option value="<?= $cat['id_categorie'] ?>" <?= ($categorie_filter == $cat['id_categorie']) ? "selected" : "" ?>>
-                <?= htmlspecialchars($cat['nom_categorie']) ?>
-            </option>
-        <?php endwhile; ?>
-    </select>
-</form>
+<div class="container my-5">
+    <h1 class="text-center mb-4">Liste des objets à emprunter</h1>
 
-<table border="1" cellpadding="8" cellspacing="0">
-    <thead>
-        <tr>
-            <th>Objet</th>
-            <th>Catégorie</th>
-            <th>Date retour (emprunt en cours)</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php if ($result->num_rows > 0) : ?>
-            <?php while ($objet = $result->fetch_assoc()) : ?>
-                <tr>
-                    <td><?= htmlspecialchars($objet['nom_objet']) ?></td>
-                    <td><?= htmlspecialchars($objet['nom_categorie']) ?></td>
-                    <td>
-                        <?= $objet['date_retour'] ? $objet['date_retour'] : "Disponible" ?>
-                    </td>
-                </tr>
+    <form method="GET" class="mx-auto mb-4" style="max-width: 360px;">
+        <label for="categorie" class="form-label fw-semibold">Filtrer par catégorie :</label>
+        <select id="categorie" name="categorie" class="form-select" onchange="this.form.submit()">
+            <option value="all" <?= $categorie_filter === 'all' ? 'selected' : '' ?>>Toutes</option>
+            <?php while ($cat = $result_cat->fetch_assoc()) : ?>
+                <option value="<?= $cat['id_categorie'] ?>" <?= $categorie_filter == $cat['id_categorie'] ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($cat['nom_categorie']) ?>
+                </option>
             <?php endwhile; ?>
-        <?php else : ?>
-            <tr><td colspan="3">Aucun objet trouvé.</td></tr>
-        <?php endif; ?>
-    </tbody>
-</table>
+        </select>
+    </form>
+
+    <div class="table-responsive shadow-sm">
+        <table class="table table-striped table-bordered align-middle text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th>Nom de l'objet</th>
+                    <th>Catégorie</th>
+                    <th>Date retour (emprunt en cours)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if ($result->num_rows > 0): ?>
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['nom_objet']) ?></td>
+                            <td><?= htmlspecialchars($row['nom_categorie']) ?></td>
+                            <td>
+                                <?php if ($row['date_retour']): ?>
+                                    <?= date('d/m/Y', strtotime($row['date_retour'])) ?>
+                                <?php else: ?>
+                                    <span class="badge bg-success">Disponible</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr><td colspan="3" class="text-muted fst-italic">Aucun objet trouvé.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
