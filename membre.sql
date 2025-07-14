@@ -14,10 +14,15 @@ CREATE TABLE membre (
 );
 
 -- Table des catégories d'objet
-CREATE TABLE categorie_objet (
-    id_categorie INT AUTO_INCREMENT PRIMARY KEY,
-    nom_categorie VARCHAR(100)
+CREATE TABLE objets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    membre_id INT,
+    nom VARCHAR(255),
+    description TEXT,
+    categorie VARCHAR(100),
+    date_ajout TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 
 -- Table des objets
 CREATE TABLE objet (
@@ -47,13 +52,21 @@ CREATE TABLE emprunt (
     FOREIGN KEY (id_objet) REFERENCES objet(id_objet),
     FOREIGN KEY (id_membre) REFERENCES membre(id_membre)
 );
+-- Table images
+CREATE TABLE images (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    objet_id INT,
+    nom_fichier VARCHAR(255),
+    est_principale BOOLEAN DEFAULT FALSE
+);
+
 
 
 INSERT INTO membre (nom, date_naissance, genre, email, ville, mdp, image_profil) VALUES
 ('Alice', '1990-03-12', 'F', 'alice@example.com', 'Antananarivo', 'pass123', 'alice.jpg'),
 ('Bob', '1985-07-22', 'H', 'bob@example.com', 'Fianarantsoa', 'pass456', 'bob.jpg'),
-('Charlie', '1992-11-05', 'H', 'charlie@example.com', 'Toamasina', 'pass789', 'charlie.jpg'),
-('Dina', '1995-01-19', 'F', 'dina@example.com', 'Toliara', 'pass321', 'dina.jpg');
+('Charlie', '1992-11-05', 'H', 'charlie@example.com', 'Toamasina', 'pass789', 'Charlie.jpg'),
+('Dina', '1995-01-19', 'F', 'dina@example.com', 'Toliara', 'pass321', 'Dina.jpg');
 
 INSERT INTO categorie_objet (nom_categorie) VALUES
 ('esthétique'), ('bricolage'), ('mécanique'), ('cuisine');

@@ -1,0 +1,47 @@
+ version 1
+
+ [ok]create  database avec membres
+  -membre4
+  -categories4
+  -objet10
+  -image
+
+[ok]- creer page
+  - login = ampidirana ny membres
+  - Inscription = manano inscription raha mbola tsy manana compte[INscrivez vous]
+  Erreur mbola misy erreur de tsy mety tafiditra[encour]
+
+
+Creer listes des objets
+
+  -misy date de retour[ok]
+  -Listes des objets[ok]
+
+-filtres par categories[ok]
+  -refa misafidy categorie ray dia filtrena ilay izy[ok]
+
+
+
+Erreur[reste a faire]
+  -tsy mety tafiditra ny login[encour]
+  -il ya encore d'erreur   
+
+
+
+
+
+Version 2
+
+   -modification le style.css[encour]
+   -
+
+Pour upload
+    -modifier les image[encour]
+    -on peut suprimer l'image[encour]
+    -refa tsisy image dia ampiana image par defaut[encour]
+
+     -objet et 
+
+
+
+

@@ -1,51 +1,62 @@
 <?php
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+ob_start();
+
 session_start();
-$conn = new mysqli("localhost", "root", "", "membres");
 $message = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $nom = trim($_POST["nom"] ?? '');
-    $date_naissance = $_POST["date_naissance"] ?? '';
-    $genre = $_POST["genre"] ?? '';
-    $email = trim($_POST["email"] ?? '');
-    $ville = trim($_POST["ville"] ?? '');
-    $mdp = $_POST["mdp"] ?? '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Récupération et nettoyage des données
+    $nom = trim($_POST['nom'] ?? '');
+    $date_naissance = $_POST['date_naissance'] ?? '';
+    $genre = $_POST['genre'] ?? '';
+    $email = trim($_POST['email'] ?? '');
+    $ville = trim($_POST['ville'] ?? '');
+    $mdp = $_POST['mdp'] ?? '';
 
+    // Vérification simple (à améliorer selon besoins)
     if (!$nom || !$date_naissance || !$genre || !$email || !$ville || !$mdp) {
-        $message = '<div class="alert alert-warning">Veuillez remplir tous les champs obligatoires.</div>';
+        $message = '<div class="alert alert-danger">Tous les champs obligatoires doivent être remplis.</div>';
     } else {
-        $stmt = $conn->prepare("SELECT id_membre FROM membre WHERE email = ?");
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $stmt->store_result();
-        if ($stmt->num_rows > 0) {
-            $message = '<div class="alert alert-danger">Cet email est déjà utilisé.</div>';
-        } else {
-            $mdp_hash = password_hash($mdp, PASSWORD_DEFAULT);
-            $image_profil = "";
-
-            if (!empty($_FILES["image"]["name"])) {
-                $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-                if (in_array($_FILES["image"]["type"], $allowed_types)) {
-                    $image_profil = uniqid() . "_" . basename($_FILES["image"]["name"]);
-                    if (!move_uploaded_file($_FILES["image"]["tmp_name"], "uploads/" . $image_profil)) {
-                        $message = '<div class="alert alert-danger">Erreur lors de l\'upload de l\'image.</div>';
-                    }
-                } else {
-                    $message = '<div class="alert alert-danger">Format d\'image non supporté (jpeg, png, gif uniquement).</div>';
-                }
-            }
-
-            if (!$message) {
-                $stmt = $conn->prepare("INSERT INTO membre (nom, date_naissance, genre, email, ville, mdp, image_profil) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssssss", $nom, $date_naissance, $genre, $email, $ville, $mdp_hash, $image_profil);
-                if ($stmt->execute()) {
-                    $message = '<div class="alert alert-success">Inscription réussie. <a href="login.php">Connectez-vous ici</a>.</div>';
-                } else {
-                    $message = '<div class="alert alert-danger">Erreur : ' . htmlspecialchars($conn->error) . '</div>';
-                }
-            }
+        // Connexion à la base
+        $conn = new mysqli("localhost", "root", "", "membres");
+        if ($conn->connect_error) {
+            die("Erreur de connexion BDD : " . $conn->connect_error);
         }
+
+        // Gestion de l'image (optionnel)
+        $imageNom = null;
+        if (!empty($_FILES['image']['name'])) {
+            $chemin_tmp = $_FILES['image']['tmp_name'];
+            $imageNom = null;
+if (!empty($_FILES['image']['name'])) {
+    $chemin_tmp = $_FILES['image']['tmp_name'];
+    $imageNom = uniqid() . "-" . basename($_FILES['image']['name']);
+    $chemin_destination = "img/" . $imageNom;
+
+    move_uploaded_file($chemin_tmp, $chemin_destination);
+}
+        }
+
+        // Sécurisation mot de passe (hash)
+        $mdpHash = password_hash($mdp, PASSWORD_DEFAULT);
+
+        // Préparer la requête (préparation pour éviter injection SQL)
+        $stmt = $conn->prepare("INSERT INTO membre (nom, date_naissance, genre, email, ville, mdp, image_profil) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssssss", $nom, $date_naissance, $genre, $email, $ville, $mdpHash, $imageNom);
+
+        if ($stmt->execute()) {
+            // Inscription OK, redirection vers acceuil.php
+            $_SESSION['user_email'] = $email; // exemple stockage session
+            header("Location: acceuil.php");
+            exit();
+        } else {
+            $message = '<div class="alert alert-danger">Erreur lors de l\'inscription : ' . htmlspecialchars($stmt->error) . '</div>';
+        }
+
+        $stmt->close();
+        $conn->close();
     }
 }
 ?>
@@ -55,86 +66,73 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
   <meta charset="utf-8">
   <title>Inscription</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.4.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body, html {
-      height: 100%;
-      background-color: #f8f9fa;
+    body {
+      background-color: #f0f2f5;
+      padding: 2rem;
     }
-    .register-wrapper {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 15px;
-    }
-    .register-box {
+    .form-container {
       max-width: 500px;
-      width: 100%;
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+    }
+    .form-title {
+      margin-bottom: 1.5rem;
+      font-weight: 600;
+      font-size: 1.5rem;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-
-<div class="register-wrapper">
-  <div class="register-box">
-    <h2 class="mb-4 text-center">Inscription</h2>
-
+  <div class="form-container">
+    <div class="form-title">Inscription</div>
     <?= $message ?? '' ?>
-
-    <form method="POST" enctype="multipart/form-data" novalidate>
+    <form method="POST" enctype="multipart/form-data">
       <div class="mb-3">
-        <label for="nom" class="form-label">Nom :</label>
-        <input type="text" name="nom" id="nom" class="form-control" required>
+        <label for="nom" class="form-label">Nom complet</label>
+        <input type="text" name="nom" class="form-control" required>
       </div>
-
       <div class="mb-3">
-        <label for="date_naissance" class="form-label">Date de naissance :</label>
-        <input type="date" name="date_naissance" id="date_naissance" class="form-control" required>
+        <label for="date_naissance" class="form-label">Date de naissance</label>
+        <input type="date" name="date_naissance" class="form-control" required>
       </div>
-
       <div class="mb-3">
-        <label for="genre" class="form-label">Genre :</label>
-        <select name="genre" id="genre" class="form-select" required>
-          <option value="" disabled selected>Choisir</option>
+        <label for="genre" class="form-label">Genre</label>
+        <select name="genre" class="form-select" required>
+          <option value="">Choisir</option>
           <option value="H">Homme</option>
           <option value="F">Femme</option>
         </select>
       </div>
-
       <div class="mb-3">
-        <label for="email" class="form-label">Email :</label>
-        <input type="email" name="email" id="email" class="form-control" required>
+        <label for="email" class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" required>
       </div>
-
       <div class="mb-3">
-        <label for="ville" class="form-label">Ville :</label>
-        <input type="text" name="ville" id="ville" class="form-control" required>
+        <label for="ville" class="form-label">Ville</label>
+        <input type="text" name="ville" class="form-control" required>
       </div>
-
       <div class="mb-3">
-        <label for="mdp" class="form-label">Mot de passe :</label>
-        <input type="password" name="mdp" id="mdp" class="form-control" required>
+        <label for="mdp" class="form-label">Mot de passe</label>
+        <input type="password" name="mdp" class="form-control" required>
       </div>
-
-      <div class="mb-4">
-        <label for="image" class="form-label">Image de profil :</label>
-        <input type="file" name="image" id="image" class="form-control" accept="image/jpeg,image/png,image/gif">
+      <div class="mb-3">
+        <label for="image" class="form-label">Image de profil</label>
+        <input type="file" name="image" class="form-control">
       </div>
-
       <button type="submit" class="btn btn-primary w-100">S'inscrire</button>
     </form>
-
-    <p class="mt-3 text-center">
-      Déjà inscrit ? <a href="login.php">Se connecter</a>
-    </p>
+    <div class="mt-3 text-center">
+      <small>Vous avez déjà un compte ? <a href="login.php">Se connecter</a></small>
+    </div>
   </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.4.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
