@@ -13,7 +13,7 @@ $categorie_filter = $_GET['categorie'] ?? 'all';
 // Préparer requête selon filtre
 if ($categorie_filter !== 'all' && $categorie_filter !== '') {
     $stmt = $conn->prepare("
-        SELECT o.nom_objet, c.nom_categorie, e.date_retour
+        SELECT o.id_objet, o.nom_objet, c.nom_categorie, e.date_retour
         FROM objet o
         INNER JOIN categorie_objet c ON o.id_categorie = c.id_categorie
         LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
@@ -23,7 +23,7 @@ if ($categorie_filter !== 'all' && $categorie_filter !== '') {
     $stmt->bind_param("i", $categorie_filter);
 } else {
     $stmt = $conn->prepare("
-        SELECT o.nom_objet, c.nom_categorie, e.date_retour
+        SELECT o.id_objet, o.nom_objet, c.nom_categorie, e.date_retour
         FROM objet o
         INNER JOIN categorie_objet c ON o.id_categorie = c.id_categorie
         LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
@@ -40,7 +40,6 @@ $result = $stmt->get_result();
     <meta charset="UTF-8" />
     <title>Liste des objets</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Bootstrap CSS (version 5.3 CDN, stable) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
 <body class="bg-light">
@@ -48,6 +47,7 @@ $result = $stmt->get_result();
 <div class="container my-5">
     <h1 class="text-center mb-4">Liste des objets à emprunter</h1>
 
+    <!-- Filtrage par catégorie -->
     <form method="GET" class="mx-auto mb-4" style="max-width: 360px;">
         <label for="categorie" class="form-label fw-semibold">Filtrer par catégorie :</label>
         <select id="categorie" name="categorie" class="form-select" onchange="this.form.submit()">
@@ -60,11 +60,12 @@ $result = $stmt->get_result();
         </select>
     </form>
 
+    <!-- Tableau des objets -->
     <div class="table-responsive shadow-sm">
         <table class="table table-striped table-bordered align-middle text-center">
             <thead class="table-dark">
                 <tr>
-                    <th>Nom de l'objet</th>
+                    <th>Nom de l'objet (et emprunter)</th>
                     <th>Catégorie</th>
                     <th>Date retour (emprunt en cours)</th>
                 </tr>
@@ -73,13 +74,30 @@ $result = $stmt->get_result();
                 <?php if ($result->num_rows > 0): ?>
                     <?php while ($row = $result->fetch_assoc()): ?>
                         <tr>
-                            <td><?= htmlspecialchars($row['nom_objet']) ?></td>
+                            <!-- Colonne Objet + Formulaire Emprunter -->
+                            <td>
+                                <?= htmlspecialchars($row['nom_objet']) ?>
+                                <?php if (!$row['date_retour']): ?>
+                                    <form method="POST" action="emprunter.php" class="mt-2 d-flex flex-column gap-1">
+                                        <input type="hidden" name="id_objet" value="<?= $row['id_objet'] ?>">
+                                        <input type="number" name="jours" min="1" max="30" class="form-control form-control-sm" placeholder="Nb jours" required>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">  Emprunter </button>
+                                    </form>
+                                <?php else: ?>
+                                    <span class="text-muted small d-block mt-1">Deja emprunter</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <!-- Catégorie -->
                             <td><?= htmlspecialchars($row['nom_categorie']) ?></td>
+
+                            <!--  Date retour -->
                             <td>
                                 <?php if ($row['date_retour']): ?>
                                     <?= date('d/m/Y', strtotime($row['date_retour'])) ?>
-                                <?php else: ?>
-                                    <span class="badge bg-success">Disponible</span>
+                                <?php else: ?>  
+                                    
+                                    <span class="badge bg-success"> Déja Disponible</span>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -91,11 +109,11 @@ $result = $stmt->get_result();
         </table>
     </div>
 </div>
-<div class="text-center mb-4">
-  <a href="objets.php" class="btn btn-success">Voir la liste des objets en mode carte</a>
-</div
 
-<!-- Bootstrap JS Bundle -->
+<!-- Bootstrap  -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+
+

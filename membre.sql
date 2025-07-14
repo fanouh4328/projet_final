@@ -62,6 +62,8 @@ CREATE TABLE images (
 
 
 
+
+
 INSERT INTO membre (nom, date_naissance, genre, email, ville, mdp, image_profil) VALUES
 ('Alice', '1990-03-12', 'F', 'alice@example.com', 'Antananarivo', 'pass123', 'alice.jpg'),
 ('Bob', '1985-07-22', 'H', 'bob@example.com', 'Fianarantsoa', 'pass456', 'bob.jpg'),

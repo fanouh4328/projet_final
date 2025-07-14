@@ -13,12 +13,11 @@ $categorie_filter = $_GET['categorie'] ?? 'all';
 // Préparer requête selon filtre
 if ($categorie_filter !== 'all' && $categorie_filter !== '') {
     $stmt = $conn->prepare("
-        SELECT o.id_objet, o.nom_objet, c.nom_categorie, e.date_retour
-        FROM objet o
-        INNER JOIN categorie_objet c ON o.id_categorie = c.id_categorie
-        LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
-        WHERE c.id_categorie = ?
-        ORDER BY o.nom_objet ASC
+       SELECT o.id_objet, o.nom_objet, c.nom_categorie, e.date_retour,
+       (SELECT nom_image FROM images WHERE id_objet = o.id_objet LIMIT 1) AS image_principale
+FROM objet o
+INNER JOIN categorie_objet c ON o.id_categorie = c.id_categorie
+LEFT JOIN emprunt e ON o.id_objet = e.id_objet AND e.date_retour >= CURDATE()
     ");
     $stmt->bind_param("i", $categorie_filter);
 } else {
@@ -72,8 +71,8 @@ $result = $stmt->get_result();
         <?php while ($row = $result->fetch_assoc()): ?>
             <div class="col-md-4">
                 <div class="card h-100 shadow-sm">
-                    <!-- Image principale - tu dois adapter si tu as un champ image -->
-                    <img src="images/balance.jpeg" alt="<?= htmlspecialchars($row['nom_objet']) ?>" class="card-img-top" />
+                    <!-- Image  -->
+                    <img src="images/<?= htmlspecialchars($row['image_principale'] ?? 'default.jpg') ?>" class="card-img-top" alt="Image de l'objet">
                     <div class="card-body d-flex flex-column">
                         <h5 class="card-title"><?= htmlspecialchars($row['nom_objet']) ?></h5>
                         <p class="card-text text-muted"><?= htmlspecialchars($row['nom_categorie']) ?></p>
@@ -95,6 +94,7 @@ $result = $stmt->get_result();
     <?php else: ?>
         <p class="text-center fst-italic">Aucun objet trouvé.</p>
     <?php endif; ?>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
